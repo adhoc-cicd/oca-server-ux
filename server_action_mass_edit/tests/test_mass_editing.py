@@ -469,6 +469,33 @@ class TestMassEditing(common.TransactionCase):
         mass_edit_line_form.field_id = self.env.ref("base.field_res_users__country_id")
         self.assertFalse(mass_edit_line_form.widget_option)
 
+    def test_field_domain(self):
+        country_id_field = self.env["ir.model.fields"].search(
+            [
+                ("model_id", "=", self.env.ref("base.model_res_users").id),
+                ("name", "=", "country_id"),
+            ],
+            limit=1,
+        )
+        line = self.env["ir.actions.server.mass.edit.line"].create(
+            {
+                "server_action_id": self.mass_editing_user.id,
+                "field_id": country_id_field.id,
+                "field_domain": "[('code', '=', 'AR')]",
+            }
+        )
+        fields_info = (
+            self.env["mass.editing.wizard"]
+            .with_context(server_action_id=self.mass_editing_user.id)
+            .fields_get()
+        )
+        self.assertEqual(fields_info["country_id"]["domain"], "[('code', '=', 'AR')]")
+
+        with self.assertRaises(ValidationError):
+            line.write({"apply_domain": True})
+
+        line.unlink()
+
     def test_onchange_call(self):
         """Onchange call does not error on dynamically added fields"""
         self.env["mass.editing.wizard"].with_context(
